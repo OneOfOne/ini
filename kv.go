@@ -1,6 +1,11 @@
 package ini
 
-import "strconv"
+import (
+	"encoding/base64"
+	"strconv"
+)
+
+var b64Enc = base64.RawURLEncoding
 
 // TODO optimize using an index rather than 3 strings
 type KeyValue struct {
@@ -8,6 +13,8 @@ type KeyValue struct {
 	value   string
 	comment string
 }
+
+func (kv KeyValue) Empty() bool { return len(kv.key)+len(kv.value)+len(kv.comment) == 0 }
 
 func (kv *KeyValue) SetKey(v string) { kv.key = v }
 func (kv KeyValue) Key() string      { return kv.key }
@@ -17,6 +24,10 @@ func (kv KeyValue) Value() string      { return kv.value }
 
 func (kv *KeyValue) SetComment(v string) { kv.comment = v }
 func (kv KeyValue) Comment() string      { return kv.comment }
+
+func (kv *KeyValue) SetBase64(b []byte) { kv.value = b64Enc.EncodeToString(b) }
+
+func (kv KeyValue) Base64() ([]byte, error) { return b64Enc.DecodeString(kv.Value()) }
 
 func (kv *KeyValue) SetInt(v int64) { kv.value = strconv.FormatInt(v, 10) }
 

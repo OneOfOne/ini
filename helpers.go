@@ -35,10 +35,10 @@ type kvSortByKey struct{ kv []KeyValue }
 func (s kvSortByKey) Len() int      { return len(s.kv) }
 func (s kvSortByKey) Swap(i, j int) { s.kv[i], s.kv[j] = s.kv[j], s.kv[i] }
 func (s kvSortByKey) Less(i, j int) bool {
-	if s.kv[i].key == "" {
+	if s.kv[i].Empty() {
 		return false
 	}
-	if s.kv[j].key == "" {
+	if s.kv[j].Empty() {
 		return true
 	}
 	return s.kv[i].key < s.kv[j].key

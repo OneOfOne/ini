@@ -59,8 +59,8 @@ func (ss *Sections) expand() (err error) {
 		pass++
 		recheck := false
 		for i := range ss.ss {
-		REDO:
 			s := &ss.ss[i]
+		REDO:
 			for i := range s.kvs {
 				kv := &s.kvs[i]
 				if strings.HasPrefix(kv.key, "%inc(") && kv.key[len(kv.key)-1] == ')' {
@@ -75,12 +75,15 @@ func (ss *Sections) expand() (err error) {
 							recheck = true
 						}
 					}
-					kv.key = ""
+					*kv = KeyValue{}
 					trimKVs(s)
 					goto REDO
 				}
 
 				kv.value = re.ReplaceAllStringFunc(kv.value, func(kw string) string {
+					if err != nil {
+						return ""
+					}
 					var sec string
 					kw = kw[2 : len(kw)-1] // strip ${}
 
@@ -143,9 +146,9 @@ func (ss *Sections) ReadFrom(r io.Reader) (total int64, err error) {
 		total += int64(ln) + 1
 
 		if ml != 0 {
-			end := strings.Contains(s, multiLineChars)
-			if end {
-				s = s[:ln-3]
+			mlIdx := strings.Index(s, multiLineChars)
+			if mlIdx != -1 {
+				s = s[:mlIdx]
 			}
 			switch ml {
 			case 1:
@@ -153,7 +156,7 @@ func (ss *Sections) ReadFrom(r io.Reader) (total int64, err error) {
 			case 2:
 				kv.value += "\n" + s
 			}
-			if end {
+			if mlIdx != -1 {
 				ml = 0
 				cur.set(kv)
 			}
@@ -202,26 +205,34 @@ func (ss *Sections) WriteTo(w io.Writer) (total int64, err error) {
 		}
 		for i := range s.kvs {
 			kv := &s.kvs[i]
-			if s.name == "" {
-				n, err = fmt.Fprintf(w, "%s", kv.Key())
-			} else {
-				n, err = fmt.Fprintf(w, "\t%s", kv.Key())
+			if k := kv.Key(); k != "" {
+				if s.name == "" {
+					n, err = fmt.Fprintf(w, "%s", k)
+				} else {
+					n, err = fmt.Fprintf(w, "\t%s", k)
+				}
+				total += int64(n)
 			}
-			total += int64(n)
 			if v := kv.Value(); v != "" {
 				if strings.Contains(v, "\n") {
 					n, err = fmt.Fprintf(w, " = %s%s%s", multiLineChars, v, multiLineChars)
 				} else {
 					n, err = fmt.Fprintf(w, " = %s", v)
 				}
+				total += int64(n)
 			}
 			if c := kv.Comment(); c != "" {
-				n, err = fmt.Fprintf(w, " // %s", c)
+				if kv.Key() == "" {
+					n, err = fmt.Fprintf(w, "\t// %s", c)
+				} else {
+					n, err = fmt.Fprintf(w, " // %s", c)
+				}
+				total += int64(n)
 			}
-			total += int64(n) + 1
-			if w.Write([]byte("\n")); err != nil {
+			if _, err = w.Write([]byte("\n")); err != nil {
 				return
 			}
+			total++
 		}
 		if i == len(ss.ss)-1 {
 			continue

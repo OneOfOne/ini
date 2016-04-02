@@ -39,6 +39,7 @@ top = 1
 	%inc(core.copy)
 
 [core.copy.copy.copy]
+	// comment
 	%inc(core.copy.copy)
 	a = override
 
