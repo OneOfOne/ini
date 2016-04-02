@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"regexp"
 	"sort"
 	"strings"
@@ -60,7 +59,8 @@ func (ss *Sections) expand() (err error) {
 		pass++
 		recheck := false
 		for i := range ss.ss {
-			s, cleanup := &ss.ss[i], false
+		REDO:
+			s := &ss.ss[i]
 			for i := range s.kvs {
 				kv := &s.kvs[i]
 				if strings.HasPrefix(kv.key, "%inc(") && kv.key[len(kv.key)-1] == ')' {
@@ -75,9 +75,9 @@ func (ss *Sections) expand() (err error) {
 							recheck = true
 						}
 					}
-					kv.key, cleanup = "", true
-					//sort.Sort(kvSortByKey{s.kvs})
-					continue
+					kv.key = ""
+					trimKVs(s)
+					goto REDO
 				}
 
 				kv.value = re.ReplaceAllStringFunc(kv.value, func(kw string) string {
@@ -108,17 +108,13 @@ func (ss *Sections) expand() (err error) {
 					recheck = true
 				}
 			}
-			if cleanup {
-				trimKVs(s)
-			}
-
 		}
 		if !recheck {
 			break
 		}
 
 		if pass > 2 {
-			log.Panic("this should never happen")
+			panic("this should never happen")
 		}
 	}
 	return
@@ -127,7 +123,7 @@ func (ss *Sections) expand() (err error) {
 func trimKVs(s *Section) {
 	sort.Sort(kvSortByKey{s.kvs})
 	i := len(s.kvs) - 1
-	for ; i > -1 && s.kvs[i].key != ""; i-- {
+	for ; i > -1 && s.kvs[i].key == ""; i-- {
 	}
 	s.kvs = s.kvs[:i+1 : i+1]
 }
@@ -144,10 +140,9 @@ func (ss *Sections) ReadFrom(r io.Reader) (total int64, err error) {
 		s := sc.Text()
 		ln := len(s)
 		total += int64(ln) + 1
-		s = strings.TrimSpace(s)
 
 		if ml != 0 {
-			end := strings.HasSuffix(s, multiLineChars)
+			end := strings.Contains(s, multiLineChars)
 			if end {
 				s = s[:ln-3]
 			}
@@ -163,6 +158,7 @@ func (ss *Sections) ReadFrom(r io.Reader) (total int64, err error) {
 			}
 			continue
 		}
+		s = strings.TrimSpace(s)
 
 		if ln == 0 {
 			continue
@@ -176,6 +172,7 @@ func (ss *Sections) ReadFrom(r io.Reader) (total int64, err error) {
 			cur.set(kv)
 		}
 	}
+	err = ss.expand()
 	return
 }
 
@@ -209,7 +206,6 @@ func (ss Sections) MarshalJSON() ([]byte, error) {
 		buf.Truncate(buf.Len() - 1)
 	}
 	buf.WriteByte('}')
-	log.Println(buf.String())
 	return buf.Bytes(), nil
 }
 
