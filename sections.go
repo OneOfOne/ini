@@ -133,8 +133,9 @@ func (ss *Sections) ReadFrom(r io.Reader) (total int64, err error) {
 		sc  = bufio.NewScanner(r)
 		cur = ss.GetOrCreate("", "")
 
-		ml uint8
-		kv KeyValue
+		ml     uint8
+		kv     KeyValue
+		expand bool
 	)
 	for sc.Scan() {
 		s := sc.Text()
@@ -164,6 +165,10 @@ func (ss *Sections) ReadFrom(r io.Reader) (total int64, err error) {
 			continue
 		}
 
+		if !expand && strings.IndexAny(s, "$%") != -1 {
+			expand = true
+		}
+
 		if name, comment, ok := getSecComment(s); ok {
 			cur = ss.GetOrCreate(name, comment)
 			continue
@@ -172,7 +177,59 @@ func (ss *Sections) ReadFrom(r io.Reader) (total int64, err error) {
 			cur.set(kv)
 		}
 	}
-	err = ss.expand()
+	if expand {
+		err = ss.expand()
+	}
+	return
+}
+
+func (ss *Sections) WriteTo(w io.Writer) (total int64, err error) {
+	var n int
+	for i := range ss.ss {
+		s := &ss.ss[i]
+		if s.Len() == 0 {
+			continue
+		}
+		if s.name != "" {
+			if s.comment != "" {
+				n, err = fmt.Fprintf(w, "[%s] // %s\n", s.name, s.comment)
+			} else {
+				n, err = fmt.Fprintf(w, "[%s]\n", s.name)
+			}
+			if total += int64(n); err != nil {
+				return
+			}
+		}
+		for i := range s.kvs {
+			kv := &s.kvs[i]
+			if s.name == "" {
+				n, err = fmt.Fprintf(w, "%s", kv.Key())
+			} else {
+				n, err = fmt.Fprintf(w, "\t%s", kv.Key())
+			}
+			total += int64(n)
+			if v := kv.Value(); v != "" {
+				if strings.Contains(v, "\n") {
+					n, err = fmt.Fprintf(w, " = %s%s%s", multiLineChars, v, multiLineChars)
+				} else {
+					n, err = fmt.Fprintf(w, " = %s", v)
+				}
+			}
+			if c := kv.Comment(); c != "" {
+				n, err = fmt.Fprintf(w, " // %s", c)
+			}
+			total += int64(n) + 1
+			if w.Write([]byte("\n")); err != nil {
+				return
+			}
+		}
+		if i == len(ss.ss)-1 {
+			continue
+		}
+		if _, err = w.Write([]byte("\n")); err != nil {
+			return
+		}
+	}
 	return
 }
 
@@ -277,5 +334,6 @@ L:
 			kv.key, ml = kv.key[3:], 1
 		}
 	}
+	kv.comment = strings.TrimLeftFunc(kv.comment, unicode.IsSpace)
 	return
 }
