@@ -44,7 +44,7 @@ func (s kvSortByKey) Less(i, j int) bool {
 	return s.kv[i].key < s.kv[j].key
 }
 
-type secSortByName struct{ ss []Section }
+type secSortByName struct{ ss []*Section }
 
 func (s secSortByName) Len() int           { return len(s.ss) }
 func (s secSortByName) Swap(i, j int)      { s.ss[i], s.ss[j] = s.ss[j], s.ss[i] }

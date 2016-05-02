@@ -12,7 +12,7 @@ import (
 )
 
 type Sections struct {
-	ss  []Section
+	ss  []*Section
 	idx uint16
 }
 
@@ -29,7 +29,7 @@ func (ss *Sections) IndexOf(name string) int {
 
 func (ss *Sections) Get(name string) *Section {
 	if i := ss.IndexOf(name); i != -1 {
-		return &ss.ss[i]
+		return ss.ss[i]
 	}
 	return nil
 }
@@ -45,10 +45,10 @@ func (ss *Sections) GetOrCreate(name, comment string) *Section {
 		}
 		return s
 	}
-	ss.ss = append(ss.ss, Section{name: name, comment: comment, idx: ss.idx})
+	ss.ss = append(ss.ss, &Section{name: name, comment: comment, idx: ss.idx})
 	ss.idx++
 	sort.Sort(secSortByName{ss.ss})
-	return &ss.ss[ss.IndexOf(name)]
+	return ss.ss[ss.IndexOf(name)]
 }
 
 var expandRe = regexp.MustCompile(`\$\{[^}]+\}`)
@@ -59,7 +59,7 @@ func (ss *Sections) expand() (err error) {
 		pass++
 		recheck := false
 		for i := range ss.ss {
-			s := &ss.ss[i]
+			s := ss.ss[i]
 		REDO:
 			for i := range s.kvs {
 				kv := &s.kvs[i]
@@ -189,7 +189,7 @@ func (ss *Sections) ReadFrom(r io.Reader) (total int64, err error) {
 func (ss *Sections) WriteTo(w io.Writer) (total int64, err error) {
 	var n int
 	for i := range ss.ss {
-		s := &ss.ss[i]
+		s := ss.ss[i]
 		if s.Len() == 0 {
 			continue
 		}
@@ -248,7 +248,7 @@ func (ss Sections) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	buf.WriteByte('{')
 	for i := range ss.ss {
-		s := &ss.ss[i]
+		s := ss.ss[i]
 		if s.name != "" {
 			fmt.Fprintf(&buf, "%q:{", s.name)
 		}

@@ -77,7 +77,17 @@ func TestReadWrite(t *testing.T) {
 	// 	}
 	// }
 	ss.WriteTo(os.Stderr)
+	b, _ := ss.MarshalJSON()
+	t.Logf("%s", b)
+	t.Logf("%#+v", ss.Get("copy.copy"))
 	// t.Log(ss.Section("core").ValueByKey("test").Int())
 	// t.Log(ss.ExpandByKey("core", "test").Int())
 	// t.Log(ss.ExpandByKey("core.int", "yy").Int())
+}
+
+func TestGet(t *testing.T) {
+	var ss Sections
+	ss.ReadFrom(strings.NewReader(exFile))
+	log.Println("---")
+	t.Logf("%#+v", ss.Get("copy.copy"))
 }

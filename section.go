@@ -7,6 +7,7 @@ type Section struct {
 	comment string
 	kvs     []KeyValue
 	idx     uint16
+	sub     Sections
 }
 
 func (s *Section) Len() int { return len(s.kvs) }
