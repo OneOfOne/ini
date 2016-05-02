@@ -3,11 +3,12 @@ package ini
 import "sort"
 
 type Section struct {
-	name    string
-	comment string
-	kvs     []KeyValue
-	idx     uint16
-	sub     Sections
+	name     string
+	fullname string
+	comment  string
+	kvs      []KeyValue
+	idx      uint16
+	sub      Sections
 }
 
 func (s *Section) Len() int { return len(s.kvs) }

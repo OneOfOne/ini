@@ -89,5 +89,5 @@ func TestGet(t *testing.T) {
 	var ss Sections
 	ss.ReadFrom(strings.NewReader(exFile))
 	log.Println("---")
-	t.Logf("%#+v", ss.Get("copy.copy"))
+	t.Logf("%#+v", ss.Get("core.copy.copy"))
 }

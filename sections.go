@@ -27,28 +27,42 @@ func (ss *Sections) IndexOf(name string) int {
 	return i
 }
 
-func (ss *Sections) Get(name string) *Section {
-	if i := ss.IndexOf(name); i != -1 {
-		return ss.ss[i]
+func (ss *Sections) Get(name string) (sec *Section) {
+	root := ss
+	for _, n := range strings.Split(name, ".") {
+		if i := root.IndexOf(n); i != -1 {
+			sec = root.ss[i]
+			root = &sec.sub
+		} else {
+			return nil
+		}
 	}
-	return nil
+	return
 }
 
-func (ss *Sections) GetOrCreate(name, comment string) *Section {
-	if s := ss.Get(name); s != nil {
-		if comment != "" {
-			if s.comment == "" {
-				s.comment = comment
-			} else {
-				s.comment += "\n" + comment
-			}
+func (ss *Sections) GetOrCreate(name, comment string) (sec *Section) {
+	root := ss
+	for _, n := range strings.Split(name, ".") {
+		if i := root.IndexOf(n); i != -1 {
+			sec = root.ss[i]
+			root = &sec.sub
+			continue
 		}
-		return s
+		sec = &Section{name: n, fullname: n, comment: comment, idx: root.idx}
+		root.ss = append(root.ss, sec)
+		root.idx++
+		sort.Sort(secSortByName{root.ss})
+		root = &sec.sub
 	}
-	ss.ss = append(ss.ss, &Section{name: name, comment: comment, idx: ss.idx})
-	ss.idx++
-	sort.Sort(secSortByName{ss.ss})
-	return ss.ss[ss.IndexOf(name)]
+	if comment != "" {
+		if sec.comment == "" {
+			sec.comment = comment
+		} else {
+			sec.comment += "\n" + comment
+		}
+	}
+	sec.fullname = name
+	return sec
 }
 
 var expandRe = regexp.MustCompile(`\$\{[^}]+\}`)
@@ -195,9 +209,9 @@ func (ss *Sections) WriteTo(w io.Writer) (total int64, err error) {
 		}
 		if s.name != "" {
 			if s.comment != "" {
-				n, err = fmt.Fprintf(w, "[%s] // %s\n", s.name, s.comment)
+				n, err = fmt.Fprintf(w, "[%s] // %s\n", s.fullname, s.comment)
 			} else {
-				n, err = fmt.Fprintf(w, "[%s]\n", s.name)
+				n, err = fmt.Fprintf(w, "[%s]\n", s.fullname)
 			}
 			if total += int64(n); err != nil {
 				return
@@ -233,6 +247,12 @@ func (ss *Sections) WriteTo(w io.Writer) (total int64, err error) {
 				return
 			}
 			total++
+		}
+		if len(s.sub.ss) > 0 {
+			w.Write([]byte("\n"))
+			if _, err = s.sub.WriteTo(w); err != nil {
+				return
+			}
 		}
 		if i == len(ss.ss)-1 {
 			continue
